@@ -1,10 +1,15 @@
 {
   "name": "sportzzz",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev" : "node index.js"
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio" : "drizzle-kit studio",
+    "db:example": "node src/crud.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +25,13 @@
   "homepage": "https://github.com/yogesh7547/sportzzz#readme",
   "description": "",
   "dependencies": {
+    "dotenv": "^18.0.7",
+    "drizzle-orm": "^0.45.4",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
     "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11"
   }
 }
