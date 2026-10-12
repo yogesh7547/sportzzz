@@ -14,18 +14,14 @@ export const matchIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
-const isoDateTimeSchema = z.string().refine(
-  (value) => z.iso.datetime({ offset: true }).safeParse(value).success,
-  { message: "Must be a valid ISO date string" },
-);
 
 export const createMatchSchema = z
   .object({
     sport: z.string().min(1),
     homeTeam: z.string().min(1),
     awayTeam: z.string().min(1),
-    startTime: isoDateTimeSchema,
-    endTime: isoDateTimeSchema,
+    startTime: z.iso.datetime(),
+    endTime: z.iso.datetime(),
     homeScore: z.coerce.number().int().nonnegative().optional(),
     awayScore: z.coerce.number().int().nonnegative().optional(),
   })
@@ -50,6 +46,7 @@ export const updateScoreSchema = z.object({
   homeScore: z.coerce.number().int().nonnegative(),
   awayScore: z.coerce.number().int().nonnegative(),
 });
+
 
 
 
