@@ -1,4 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws";
+import { wsArcjet } from "../arcjet.js";
 
 function sendJson(socket, payload) {
   if (socket.readyState != WebSocket.OPEN) return;
@@ -28,14 +29,50 @@ function broadcast(wss, payload) {
 
 export function attatchWebsocketServer(server) {
   const wss = new WebSocketServer({
-    server,
-    path: "/ws",
+    noServer: true,
     maxPayload: 1024 * 1024, // 1MB
+  });
+
+  server.on("upgrade", async (req, socket, head) => {
+    try {
+      if (new URL(req.url, "http://localhost").pathname !== "/ws") return;
+
+      if (wsArcjet) {
+        const decision = await wsArcjet.protect(req);
+
+        if (decision.isDenied()) {
+          const isRateLimit = decision.reason.isRateLimit();
+          const statusCode = isRateLimit ? 429 : 403;
+          const statusText = isRateLimit ? "Too Many Requests" : "Access Denied";
+          const body = `${statusText}\n`;
+          const response = [
+            `HTTP/1.1 ${statusCode} ${statusText}`,
+            "Connection: close",
+            "Content-Type: text/plain",
+            `Content-Length: ${Buffer.byteLength(body)}`,
+            "",
+            body,
+          ].join("\r\n");
+
+          socket.end(response, () => socket.destroy());
+          return;
+        }
+      }
+
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
+      });
+    } catch (err) {
+      console.error("ws connection error ", err);
+      socket.destroy();
+    }
   });
 
   wss.on("connection", (socket) => {
     socket.isAlive = true;
-    socket.on("pong", () => { socket.isAlive = true; });
+    socket.on("pong", () => {
+      socket.isAlive = true;
+    });
 
     sendJson(socket, { type: "welcome" });
 
@@ -45,17 +82,14 @@ export function attatchWebsocketServer(server) {
   const interval = setInterval(() => {
     wss.clients.forEach((ws) => {
       if (ws.isAlive === false) return ws.terminate();
-       ws.isAlive = false;
-       ws.ping();
+      ws.isAlive = false;
+      ws.ping();
     });
+  }, 30000);
 
-    }, 30000); 
-
-    wss.on("close", () => {
-      clearInterval(interval);
-    });
-
-        
+  wss.on("close", () => {
+    clearInterval(interval);
+  });
 
   function broadcastMatchCreated(match) {
     broadcast(wss, { type: "match_created", data: match });
