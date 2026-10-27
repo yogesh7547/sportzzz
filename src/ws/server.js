@@ -29,30 +29,46 @@ function broadcast(wss, payload) {
 
 export function attatchWebsocketServer(server) {
   const wss = new WebSocketServer({
-    server,
-    path: "/ws",
+    noServer: true,
     maxPayload: 1024 * 1024, // 1MB
   });
 
-  wss.on("connection", async (socket, req) => {
-    if (wsArcjet) {
-      try {
-        const descision = await wsArcjet.protect(req);
+  server.on("upgrade", async (req, socket, head) => {
+    try {
+      if (new URL(req.url, "http://localhost").pathname !== "/ws") return;
 
-        if (descision.isDenied()) {
-          const code = descision.reason.isRateLimit() ? 1013 : 1008;
-          const reason = descision.reason.isRateLimit()
-            ? "Too Many Requests"
-            : "Access Denied";
-          socket.close(code, reason);
+      if (wsArcjet) {
+        const decision = await wsArcjet.protect(req);
+
+        if (decision.isDenied()) {
+          const isRateLimit = decision.reason.isRateLimit();
+          const statusCode = isRateLimit ? 429 : 403;
+          const statusText = isRateLimit ? "Too Many Requests" : "Access Denied";
+          const body = `${statusText}\n`;
+          const response = [
+            `HTTP/1.1 ${statusCode} ${statusText}`,
+            "Connection: close",
+            "Content-Type: text/plain",
+            `Content-Length: ${Buffer.byteLength(body)}`,
+            "",
+            body,
+          ].join("\r\n");
+
+          socket.end(response, () => socket.destroy());
           return;
         }
-      } catch (err) {
-        console.error("ws connection error ", err);
-        socket.close(1011, 'server security error');
-        return;
       }
+
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
+      });
+    } catch (err) {
+      console.error("ws connection error ", err);
+      socket.destroy();
     }
+  });
+
+  wss.on("connection", (socket) => {
     socket.isAlive = true;
     socket.on("pong", () => {
       socket.isAlive = true;
