@@ -1,5 +1,6 @@
 import express from "express";
 import { matchRouter } from "./routes/matchRouter.js";
+import { commentaryRouter } from "./routes/commentary.js";
 import http from "http";
 import  {attatchWebsocketServer}  from "./ws/server.js";
 import {securityMiddleware} from './arcjet.js';
@@ -11,8 +12,7 @@ const app = express();
 
 const server= http.createServer(app);
 
-app.use(express.json());
-
+app.use(express.json()); 
 
 
 app.get("/", (_req, res) => {
@@ -22,12 +22,14 @@ app.get("/", (_req, res) => {
 app.use(securityMiddleware());
 
 app.use("/matches", matchRouter);
+app.use("/matches/:id/commentary", commentaryRouter);
 
-const {broadcastMatchCreated} = attatchWebsocketServer(server);
-app.locals.broadcastMatchCreated = broadcastMatchCreated;
+const {broadcastMatchCreated,broadcastCommentary } = attatchWebsocketServer(server);
+app.locals.broadcastMatchCreated = broadcastMatchCreated; 
+app.locals.broadcastCommentary = broadcastCommentary; 
 
 server.listen(PORT,HOST, () => {
   const baseURL = HOST === '0.0.0.0' ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`; 
-  console.log(`Server listening at ${baseURL}`);
-  console.log(`WebSocket server listening at ${baseURL.replace('http', 'ws')}/ws`);
-});
+  console.log(`Server listening at ${baseURL}`); 
+  console.log(`WebSocket server listening at ${baseURL.replace('http', 'ws')}/ws`); 
+}); 
